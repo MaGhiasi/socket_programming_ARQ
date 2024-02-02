@@ -1,5 +1,24 @@
 import socket
 import math
+import random
+import time
+
+
+def initial_data(is_random):
+    if not is_random:
+        return [[2, 8, 22, 28], [9, 12, 13, 14, 19, 24, 25], [0, 2, 3]]
+        # 2 (fr), 0 (rej) => damaged frame then damaged REJ then frame-time out
+        # 8 (fr) => damaged frame
+        # 9 (rr) => damaged RR (no problem due to next RR)
+        # 12, 13, 14 => consecutive damaged RRs then frame-time out
+        # 22 (fr) , 2 (rej) , 19 (rr) => no response to first Pbit=1
+        #                 but response to second Pbit=1 and continue
+        # 28 (fr) , 3 (rej) , 24, 25 (rr) => no response to 2 Pbit=1 in a row and END connection
+    else:
+        crashed_frames = list(set(sorted([random.randint(0, 31) for _ in range(random.randint(2, 15))])))
+        crashed_rr = list(set(sorted([random.randint(0, 31) for _ in range(random.randint(2, 15))])))
+        crashed_rej = list(set(sorted([random.randint(0, 10) for _ in range(random.randint(2, 10))])))
+        return [crashed_frames, crashed_rr, crashed_rej]
 
 
 class Receiver:
@@ -12,16 +31,9 @@ class Receiver:
         self.frame_counter = 0
         self.has_rejected = False
         self.counter_fr_rr_rej = [0, 0, 0]
-        self.crashed_fr_rr_rej = [[], [], []]
-        # self.crashed_fr_rr_rej = [[2, 8, 22, 28], [9, 12, 13, 14, 19, 24, 25], [0, 2, 3]]
-        # 2 (fr), 0 (rej) => damaged frame then damaged REJ then frame-time out
-        # 8 (fr) => damaged frame
-        # 9 (rr) => damaged RR (no problem due to next RR)
-        # 12, 13, 14 => consecutive damaged RRs then frame-time out
-        # 22 (fr) , 2 (rej) , 19 (rr) => no response to first Pbit=1
-        #                 but response to second Pbit=1 and continue
-        # 28 (fr) , 3 (rej) , 24, 25 (rr) => no response to 2 Pbit=1 in a row and END connection
-
+        # self.crashed_fr_rr_rej = [[], [], []]
+        self.crashed_fr_rr_rej = initial_data(True)
+        print(self.crashed_fr_rr_rej)
         # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn = None
@@ -71,6 +83,7 @@ class Receiver:
             self.has_rejected = True
 
     def send_RR(self, is_crashed):
+        time.sleep(0.5)
         message = 'RR' + str(self.frame_counter)
         print('send RR: \u001b[34m' + message + '\u001b[0m', end='')
         if not is_crashed:
@@ -82,6 +95,7 @@ class Receiver:
         self.counter_fr_rr_rej[1] += 1
 
     def send_REJ(self, is_crashed):
+        time.sleep(0.5)
         message = 'REJ' + str(self.frame_counter)
         print('send REJ: \u001b[31m' + message + '\u001b[0m', end='')
         if not is_crashed:
