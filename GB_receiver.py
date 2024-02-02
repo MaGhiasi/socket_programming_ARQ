@@ -4,8 +4,15 @@ import random
 import time
 
 
-def initial_data(is_random):
-    if not is_random:
+def initial_data(is_exact, is_random):
+    if is_exact == 'Y':
+        return [[], [], []]
+    if is_random == 'Y':
+        crashed_frames = list(set(sorted([random.randint(0, 31) for _ in range(random.randint(2, 15))])))
+        crashed_rr = list(set(sorted([random.randint(0, 31) for _ in range(random.randint(2, 15))])))
+        crashed_rej = list(set(sorted([random.randint(0, 10) for _ in range(random.randint(2, 10))])))
+        return [crashed_frames, crashed_rr, crashed_rej]
+    else:
         return [[2, 8, 22, 28], [9, 12, 13, 14, 19, 24, 25], [0, 2, 3]]
         # 2 (fr), 0 (rej) => damaged frame then damaged REJ then frame-time out
         # 8 (fr) => damaged frame
@@ -14,16 +21,11 @@ def initial_data(is_random):
         # 22 (fr) , 2 (rej) , 19 (rr) => no response to first Pbit=1
         #                 but response to second Pbit=1 and continue
         # 28 (fr) , 3 (rej) , 24, 25 (rr) => no response to 2 Pbit=1 in a row and END connection
-    else:
-        crashed_frames = list(set(sorted([random.randint(0, 31) for _ in range(random.randint(2, 15))])))
-        crashed_rr = list(set(sorted([random.randint(0, 31) for _ in range(random.randint(2, 15))])))
-        crashed_rej = list(set(sorted([random.randint(0, 10) for _ in range(random.randint(2, 10))])))
-        return [crashed_frames, crashed_rr, crashed_rej]
 
 
 class Receiver:
 
-    def __init__(self, w, k):
+    def __init__(self, w, k, crashed_fr_rr_rej):
         self.frame_buffer = []
         self.w = w
         self.k = k
@@ -31,9 +33,7 @@ class Receiver:
         self.frame_counter = 0
         self.has_rejected = False
         self.counter_fr_rr_rej = [0, 0, 0]
-        # self.crashed_fr_rr_rej = [[], [], []]
-        self.crashed_fr_rr_rej = initial_data(True)
-        print(self.crashed_fr_rr_rej)
+        self.crashed_fr_rr_rej = crashed_fr_rr_rej
         # socket
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.conn = None
@@ -113,5 +113,15 @@ if __name__ == '__main__':
     while window_size > math.pow(2, seq_bits) - 1:
         window_size = int(input(' >>> W out of range\nEnter W: '))
 
-    receiver = Receiver(window_size, seq_bits)
+    exact_connection = input('If you want connection without data loss Enter Y,\nelse enter anything: ')
+    is_random_loss = 'N'
+    if exact_connection != 'Y':
+        is_random_loss = input('If you want random data loss Enter Y,\nelse enter anything: ')
+
+    crashed_packets = initial_data(exact_connection, is_random_loss)
+    print('> So crashed packets are as follows:\u001b[31;1m\ncrashed data:' + str(crashed_packets[0]) +
+          'crashed RR messages:' + str(crashed_packets[1]) +
+          '\ncrashed REJ messages:' + str(crashed_packets[2]) + '\u001b[0m')
+
+    receiver = Receiver(window_size, seq_bits, crashed_packets)
     receiver.initiate_channel()
