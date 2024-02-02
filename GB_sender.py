@@ -4,12 +4,24 @@ import time
 from threading import Timer
 
 
+def add_k_bits(msg, seq_bits):
+    arr = []
+    counter = 0
+    for i in range(len(msg)):
+        binary_seq = f'{counter:0{seq_bits}b}'
+        arr.append(msg[i] + binary_seq)
+        counter += 1
+        if counter >= math.pow(2, seq_bits):
+            counter = 0
+    return arr
+
+
 class Sender:
 
-    def __init__(self, message_arr,  w, k):
+    def __init__(self, message_arr):
         self.message_arr = message_arr
-        self.w = w
-        self.k = k
+        self.w = None
+        self.k = None
         self.frame_counter = 0
         self.index = -1
         self.last_ack = 0
@@ -22,9 +34,6 @@ class Sender:
         self.maxP = 2
         self.p_timer = Timer(2, self.send_RRp1)
         self.timers = []
-        for i in range(int(math.pow(2, k))):
-            timer = Timer(5, self.send_RRp1, args=(i,))
-            self.timers.append(timer)
 
     def handle_ack(self, ack_message):
         if 'RR' in ack_message:
@@ -65,9 +74,19 @@ class Sender:
             count += 1
         return count
 
+    def set_initial_data(self):
+        self.sock.connect(('127.0.0.1', 8080))
+        self.k = int(self.sock.recv(1024).decode())
+        self.w = int(self.sock.recv(1024).decode())
+        for i in range(int(math.pow(2, self.k))):
+            timer = Timer(6, self.send_RRp1, args=(i,))
+            self.timers.append(timer)
+
+        self.message_arr = add_k_bits(self.message_arr, self.k)
+        self.start_sending()
+
     def start_sending(self):
         print('Ready\n\u001b[31m ============= sender =============\u001b[0m')
-        self.sock.connect(('127.0.0.1', 8080))
         self.sock.settimeout(1.2)
 
         while self.index < len(self.message_arr) - 1:
@@ -80,6 +99,9 @@ class Sender:
 
             self.receive_ack()
 
+        self.p_timer.cancel()
+        for timer in self.timers:
+            timer.cancel()
         self.sock.send('DISC'.encode())
         print('\u001b[31m >>>\u001b[0m sent message:\u001b[34m DISC\u001b[0m')
 
@@ -97,7 +119,7 @@ class Sender:
         print('\u001b[31m >>>\u001b[0m sent message:{} => F{}'
               .format(self.message_arr[send_index], str(self.frame_counter)))
         self.sock.send(self.message_arr[send_index].encode())
-        self.timers[self.frame_counter] = Timer(5, self.send_RRp1, args=(self.frame_counter,))
+        self.timers[self.frame_counter] = Timer(6, self.send_RRp1, args=(self.frame_counter,))
         self.timers[self.frame_counter].start()
         self.frame_counter = int((self.frame_counter + 1) % math.pow(2, self.k))
 
@@ -119,23 +141,11 @@ class Sender:
 
 
 if __name__ == '__main__':
-    seq_bits = int(input('Enter K: '))
-    window_size = int(input('Enter W: '))
-    while window_size > math.pow(2, seq_bits) - 1:
-        window_size = int(input(' >>> W out of range\nEnter W: '))
-
     message_array = ['11111', '11111', '11111', '11111', '11111', '11111', '11111', '11111',
                      '11101', '11101', '11101', '11101', '11101', '11101', '11101', '11101',
                      '11011', '11011', '11011', '11011', '11011', '11011', '11011', '11011',
                      '10111', '10111', '10111', '10111', '10111', '10111', '10111', '10111',
                      '01111', '01111', '01111', '01111', '01111', '01111', '01111', '01111']
-    counter = 0
-    for i in range(len(message_array)):
-        binary_seq = f'{counter:0{seq_bits}b}'
-        message_array[i] = message_array[i] + binary_seq
-        counter += 1
-        if counter >= math.pow(2, seq_bits):
-            counter = 0
 
-    sender = Sender(message_array, window_size, seq_bits)
-    sender.start_sending()
+    sender = Sender(message_array)
+    sender.set_initial_data()

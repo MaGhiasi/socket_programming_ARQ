@@ -12,15 +12,16 @@ def initial_data(is_exact, is_random):
         crashed_rr = list(set(sorted([random.randint(0, 31) for _ in range(random.randint(2, 15))])))
         crashed_rej = list(set(sorted([random.randint(0, 10) for _ in range(random.randint(2, 10))])))
         return [crashed_frames, crashed_rr, crashed_rej]
-    else:
-        return [[2, 8, 22, 28], [9, 12, 13, 14, 19, 24, 25], [0, 2, 3]]
-        # 2 (fr), 0 (rej) => damaged frame then damaged REJ then frame-time out
-        # 8 (fr) => damaged frame
-        # 9 (rr) => damaged RR (no problem due to next RR)
-        # 12, 13, 14 => consecutive damaged RRs then frame-time out
-        # 22 (fr) , 2 (rej) , 19 (rr) => no response to first Pbit=1
-        #                 but response to second Pbit=1 and continue
-        # 28 (fr) , 3 (rej) , 24, 25 (rr) => no response to 2 Pbit=1 in a row and END connection
+
+    return [[2, 8, 12, 15, 23, 27], [0, 2, 3, 7, 8, 12, 16, 19, 20, 24, 27, 28], [2, 5]]
+    # [[2, 8, 22, 28], [9, 12, 13, 14, 19, 24, 25], [0, 2, 3]]
+    # 2 (fr), 0 (rej) => damaged frame then damaged REJ then frame-time out
+    # 8 (fr) => damaged frame
+    # 9 (rr) => damaged RR (no problem due to next RR)
+    # 12, 13, 14 => consecutive damaged RRs then frame-time out
+    # 22 (fr) , 2 (rej) , 19 (rr) => no response to first Pbit=1
+    #                 but response to second Pbit=1 and continue
+    # 28 (fr) , 3 (rej) , 24, 25 (rr) => no response to 2 Pbit=1 in a row and END connection
 
 
 class Receiver:
@@ -43,6 +44,9 @@ class Receiver:
         self.sock.listen()
         print('listening')
         self.conn, addr = self.sock.accept()
+        self.conn.sendall(str(self.k).encode())
+        time.sleep(0.5)
+        self.conn.sendall(str(self.w).encode())
         self.receive()
 
     def receive(self):
@@ -120,7 +124,7 @@ if __name__ == '__main__':
 
     crashed_packets = initial_data(exact_connection, is_random_loss)
     print('> So crashed packets are as follows:\u001b[31;1m\ncrashed data:' + str(crashed_packets[0]) +
-          'crashed RR messages:' + str(crashed_packets[1]) +
+          '\ncrashed RR messages:' + str(crashed_packets[1]) +
           '\ncrashed REJ messages:' + str(crashed_packets[2]) + '\u001b[0m')
 
     receiver = Receiver(window_size, seq_bits, crashed_packets)
