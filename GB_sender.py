@@ -19,7 +19,7 @@ class Sender:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # timer
-        self.maxP = 5
+        self.maxP = 2
         self.p_timer = Timer(2, self.send_RRp1)
         self.timers = []
         for i in range(int(math.pow(2, k))):
@@ -39,7 +39,7 @@ class Sender:
                 self.index -= self.find_discarded_count()
                 self.frame_counter = self.last_ack
                 self.p_timer.cancel()
-                self.maxP = 5
+                self.maxP = 2
                 self.is_sending = True
 
         elif 'REJ' in ack_message:
@@ -113,14 +113,29 @@ class Sender:
 
             self.p_timer = Timer(2, self.send_RRp1, args=('p',))
             self.p_timer.start()
+        elif self.maxP == 0:
+            # to end the main while loop (no response from receiver)
+            self.index = len(self.message_arr)
 
 
 if __name__ == '__main__':
-    seq_bits = int(input('Enter k: '))
+    seq_bits = int(input('Enter K: '))
     window_size = int(input('Enter W: '))
-    message_array = ['11111000', '11111001', '11111010', '11111011', '11111100', '11111101', '11111110', '11111111',
-                     '10011000', '10011001', '10011010', '10011011', '10011100', '10011101', '10011110', '10011111',
-                     '11001000', '11001001', '11001010', '11001011']
+    while window_size > math.pow(2, seq_bits) - 1:
+        window_size = int(input(' >>> W out of range\nEnter W: '))
+
+    message_array = ['11111', '11111', '11111', '11111', '11111', '11111', '11111', '11111',
+                     '11101', '11101', '11101', '11101', '11101', '11101', '11101', '11101',
+                     '11011', '11011', '11011', '11011', '11011', '11011', '11011', '11011',
+                     '10111', '10111', '10111', '10111', '10111', '10111', '10111', '10111',
+                     '01111', '01111', '01111', '01111', '01111', '01111', '01111', '01111']
+    counter = 0
+    for i in range(len(message_array)):
+        binary_seq = f'{counter:0{seq_bits}b}'
+        message_array[i] = message_array[i] + binary_seq
+        counter += 1
+        if counter >= math.pow(2, seq_bits):
+            counter = 0
 
     sender = Sender(message_array, window_size, seq_bits)
     sender.start_sending()
