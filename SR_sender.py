@@ -48,6 +48,7 @@ class Sender:
 
             print('received ack: \u001b[34m' + ack_message + '\u001b[0m')
             print('last ack:' + str(self.last_ack) + '\n')
+            # change frane counter and index
             self.frame_counter = self.last_ack
             t = self.new_count_middles(seq_num)
             self.index = self.index - t
